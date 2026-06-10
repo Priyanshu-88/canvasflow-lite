@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CanvasFlow Lite — Real-time collaborative whiteboard. Create or join a room to draw together.">
+  <title>CanvasFlow Lite — Collaborative Whiteboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="landing-page">
+    <div class="landing-container">
+
+      <!-- Logo -->
+      <div class="logo">
+        <div class="logo-icon">&#9998;</div>
+        <h1>CanvasFlow Lite</h1>
+        <p>Real-time collaborative whiteboard</p>
+      </div>
+
+      <!-- Main Card -->
+      <div class="glass-card">
+        <!-- Tabs: Create / Join -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="create" id="tab-create">Create Room</button>
+          <button class="tab-btn" data-tab="join" id="tab-join">Join Room</button>
+        </div>
+
+        <!-- Create Room Panel -->
+        <div class="tab-panel active" id="panel-create">
+          <div class="form-group">
+            <label for="create-username">Your Name</label>
+            <input type="text" id="create-username" class="form-input" placeholder="Enter your name" maxlength="20" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="create-room-name">Room Name</label>
+            <input type="text" id="create-room-name" class="form-input" placeholder="e.g. Design Sprint" maxlength="40" autocomplete="off">
+          </div>
+          <button class="btn btn-primary" id="btn-create-room">
+            <span>&#10010;</span> Create Room
+          </button>
+        </div>
+
+        <!-- Join Room Panel -->
+        <div class="tab-panel" id="panel-join">
+          <div class="form-group">
+            <label for="join-username">Your Name</label>
+            <input type="text" id="join-username" class="form-input" placeholder="Enter your name" maxlength="20" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="join-room-id">Room ID</label>
+            <input type="text" id="join-room-id" class="form-input" placeholder="Enter room ID" maxlength="10" autocomplete="off">
+          </div>
+          <button class="btn btn-primary" id="btn-join-room">
+            <span>&#10140;</span> Join Room
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Rooms -->
+      <div class="glass-card" style="margin-top: 1rem; padding: 1.25rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 0.75rem;">
+          <h3 style="font-size: 0.85rem; font-weight: 700;">Active Rooms</h3>
+          <button class="btn-secondary" id="btn-refresh-rooms" style="width:auto; padding: 0.35rem 0.75rem; font-size: 0.75rem; border-radius: 8px; border: 1px solid var(--border-glass); background: var(--bg-glass); color: var(--text-secondary); cursor: pointer; font-family: var(--font);">
+            &#8635; Refresh
+          </button>
+        </div>
+        <div id="rooms-list" style="max-height: 180px; overflow-y: auto;">
+          <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem;">Loading rooms...</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ── Tab Switching ──────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`panel-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    // ── Create Room ────────────────────────────────────────
+    document.getElementById('btn-create-room').addEventListener('click', async () => {
+      const username = document.getElementById('create-username').value.trim();
+      const roomName = document.getElementById('create-room-name').value.trim();
+
+      if (!username) return alert('Please enter your name');
+      if (!roomName) return alert('Please enter a room name');
+
+      try {
+        const res = await fetch('/api/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: roomName }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          // Store user info and redirect to whiteboard
+          sessionStorage.setItem('cf_username', username);
+          sessionStorage.setItem('cf_room_id', data.room.id);
+          sessionStorage.setItem('cf_room_name', data.room.name);
+          window.location.href = `/whiteboard?room=${data.room.id}`;
+        } else {
+          alert(data.error || 'Failed to create room');
+        }
+      } catch (err) {
+        alert('Connection error. Is the server running?');
+      }
+    });
+
+    // ── Join Room ──────────────────────────────────────────
+    document.getElementById('btn-join-room').addEventListener('click', () => {
+      const username = document.getElementById('join-username').value.trim();
+      const roomId = document.getElementById('join-room-id').value.trim();
+
+      if (!username) return alert('Please enter your name');
+      if (!roomId) return alert('Please enter a room ID');
+
+      sessionStorage.setItem('cf_username', username);
+      sessionStorage.setItem('cf_room_id', roomId);
+      window.location.href = `/whiteboard?room=${roomId}`;
+    });
+
+    // ── Load Active Rooms ──────────────────────────────────
+    async function loadRooms() {
+      try {
+        const res = await fetch('/api/rooms');
+        const data = await res.json();
+        const container = document.getElementById('rooms-list');
+
+        if (!data.success || data.rooms.length === 0) {
+          container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem;">No active rooms. Create one!</p>';
+          return;
+        }
+
+        container.innerHTML = data.rooms.map(room => `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; background: var(--bg-glass); border-radius: 10px; margin-bottom: 0.4rem; cursor: pointer; transition: background 200ms; border: 1px solid transparent;"
+               onmouseover="this.style.background='var(--bg-glass-hover)'; this.style.borderColor='var(--border-glass-hover)'"
+               onmouseout="this.style.background='var(--bg-glass)'; this.style.borderColor='transparent'"
+               onclick="quickJoin('${room.id}', '${room.name}')">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 600;">${room.name}</div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace;">${room.id}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.8rem;">
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="font-size: 0.7rem; color: var(--success);">&#9679;</span>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">${room.user_count || 0} online</span>
+              </div>
+              <button onclick="deleteRoom(event, '${room.id}')" style="background: none; border: none; color: #ff6b6b; cursor: pointer; font-size: 1rem; padding: 0.2rem;" title="Close Room">&#10006;</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        document.getElementById('rooms-list').innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem;">Could not load rooms</p>';
+      }
+    }
+
+    function quickJoin(roomId, roomName) {
+      const username = document.getElementById('create-username').value.trim() ||
+                       document.getElementById('join-username').value.trim();
+      if (!username) {
+        alert('Please enter your name first');
+        return;
+      }
+      sessionStorage.setItem('cf_username', username);
+      sessionStorage.setItem('cf_room_id', roomId);
+      sessionStorage.setItem('cf_room_name', roomName);
+      window.location.href = `/whiteboard?room=${roomId}`;
+    }
+
+    async function deleteRoom(event, roomId) {
+      event.stopPropagation(); // Prevent triggering quickJoin
+      if (!confirm('Are you sure you want to close this room? This action cannot be undone.')) return;
+      
+      try {
+        const res = await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          loadRooms();
+        } else {
+          alert(data.error || 'Failed to close room');
+        }
+      } catch (err) {
+        alert('Connection error');
+      }
+    }
+
+    // Enter key support
+    document.querySelectorAll('.form-input').forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          const panel = input.closest('.tab-panel');
+          panel.querySelector('.btn').click();
+        }
+      });
+    });
+
+    document.getElementById('btn-refresh-rooms').addEventListener('click', loadRooms);
+    loadRooms();
+  </script>
+</body>
+</html>
