@@ -218,7 +218,7 @@ Starts the development server with auto-reload.
 
 This project is licensed under the MIT License.
 
----
+--
 
 <p align="center">
 Built with ❤️ using Node.js, Socket.io, SQLite, and HTML5 Canvas
