@@ -8,7 +8,7 @@ Built using **Node.js, Express, Socket.io, SQLite, and HTML5 Canvas**.
 
 ## 🚀 Features
 
-- 🖌️ Real-time collaborative drawing
+- 🖌️ Real-time collaborative drawing.
 - 👥 Multi-user whiteboard rooms
 - 🔄 Undo and Redo support
 - 💬 Live chat with typing indicators
