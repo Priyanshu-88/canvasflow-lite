@@ -18,7 +18,7 @@ Built using **Node.js, Express, Socket.io, SQLite, and HTML5 Canvas**.
 - 💾 SQLite-based data persistence
 - ⚡ WebSocket-powered communication
 
----
+--
 
 ## 📌 How It Works
 
